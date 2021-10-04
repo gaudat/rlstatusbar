@@ -1,0 +1,5 @@
+#@lxpanel --profile LXDE
+#@pcmanfm --desktop --profile LXDE
+#@xscreensaver -no-splash
+@unclutter -display :0 -noevents -grab
+@chromium-browser --window-position=0,0 --window-size=9999,9999 --kiosk /srv/rlstatusbar/lightning/index.html
