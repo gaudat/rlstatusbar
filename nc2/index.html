@@ -1,0 +1,221 @@
+<!doctype html>
+<html>
+    <head>
+        <style>
+            #canvas {
+                position: fixed;
+                left: 0px;
+                top: 0px;
+                z-index: 0;
+            }
+            body {
+                margin: 0px;
+            }
+            #cat {
+                z-index: 1;
+                height: 84px;
+                margin: 0 auto;
+                display: block;
+                position: absolute;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="canvas" width="1920px" height="132px"></canvas>
+        <img src="original.gif" id="cat">
+        <script>
+            "use strict";
+            (() => {
+                let c = document.getElementById("canvas");
+                
+                const pxSize = 5;
+                const starSize = 7;
+                const nFrames = 7;
+
+                let drawStarFrames = () => {
+                    let ce = document.createElement("canvas");
+                    ce.width = pxSize * starSize * nFrames;
+                    ce.height = pxSize * starSize;
+                    let c = ce.getContext('2d');
+                    c.clearRect(0, 0, ce.width, ce.height);
+                    let drawPixel = (n, x, y) => {
+                        let origFill = c.fillStyle;
+                        c.fillStyle = 'white';
+                        c.fillRect((n * starSize + x) * pxSize, y * pxSize, pxSize, pxSize);
+                        c.fillStyle = origFill;
+                    };
+                    drawPixel(1, 3, 3);
+
+                    drawPixel(2, 3, 2);
+                    drawPixel(2, 3, 4);
+                    drawPixel(2, 2, 3);
+                    drawPixel(2, 4, 3);
+
+                    drawPixel(3, 3, 1);
+                    drawPixel(3, 3, 2);
+                    drawPixel(3, 3, 4);
+                    drawPixel(3, 3, 5);
+                    drawPixel(3, 1, 3);
+                    drawPixel(3, 2, 3);
+                    drawPixel(3, 4, 3);
+                    drawPixel(3, 5, 3);
+                    
+                    drawPixel(4, 3, 0);
+                    drawPixel(4, 3, 1);
+                    drawPixel(4, 3, 5);
+                    drawPixel(4, 3, 6);
+                    drawPixel(4, 0, 3);
+                    drawPixel(4, 1, 3);
+                    drawPixel(4, 5, 3);
+                    drawPixel(4, 6, 3);
+                    
+                    drawPixel(5, 3, 0);
+                    drawPixel(5, 3, 6);
+                    drawPixel(5, 0, 3);
+                    drawPixel(5, 6, 3);
+                    drawPixel(5, 5, 5);
+                    drawPixel(5, 5, 1);
+                    drawPixel(5, 1, 5);
+                    drawPixel(5, 1, 1);
+                    
+                    drawPixel(6, 3, 0);
+                    drawPixel(6, 3, 6);
+                    drawPixel(6, 0, 3);
+                    drawPixel(6, 6, 3);
+
+                    return ce;
+                };
+                let star = drawStarFrames();
+                
+                let setup = () => {
+                    console.log(c.width, c.height);
+                    let ctx = c.getContext('2d');
+                    ctx.fillStyle = "#0f4d8f";
+                    ctx.fillRect(0, 0, c.width, c.height);
+                    //ctx.drawImage(star, 0, 0);
+                };
+
+                let starInfos = new Array();
+                let maxStarCount = 9999;
+                let makeStarInterval = 60;
+                let animateStarInterval = 0;
+                let lastMakeStar = null;
+                let lastAnimateStar = null;
+
+                let makeStar = () => {
+                    if (starInfos.length >= maxStarCount) {
+                        // Enough star on screen already
+                        return;
+                    }
+                    let starInfo = {
+                        speed: [10, 20, 30, 40][Math.floor(Math.random() * 4)],
+                        x: Math.random() * (c.width) + 200,
+                        y: Math.random() * (c.height) - 18,
+                        frame: 1,
+                        frameStart: null,
+                    };
+                    starInfos = starInfos.concat(starInfo);
+                };
+
+                let drawStar = (ctx, x, y, frame) => {
+                    ctx.drawImage(star, 
+                            frame * pxSize * starSize, 
+                            0, 
+                            pxSize * starSize, 
+                            pxSize * starSize, 
+                            x, 
+                            y, 
+                            pxSize * starSize, 
+                            pxSize * starSize);
+                }
+
+                let drawStars = (ts, tdiff, ctx) => {
+                    starInfos.forEach((x) => {
+                        drawStar(ctx, x.x, x.y, x.frame);
+                        // Advance frame
+                        if (x.frameStart === null || ts - x.frameStart > 150) {
+                            x.frame += 1;
+                            if (x.frame >= 7) {
+                                x.frame = 0;
+                            }
+                            x.frameStart = ts;
+                        }
+                        x.x -= x.speed * tdiff / 150;
+                    });
+                    starInfos = starInfos.filter((x) => {
+                        return x.x > -50;
+                    });
+                };
+
+                let animateCat = (ts) => {
+                    let catPeriod = 5000;
+                    let catAmplitude = 0.1;
+                    let catPhase = (ts % catPeriod) / catPeriod;
+                    let catOffset = Math.sin(catPhase * 2 * Math.PI);
+                    let cat = document.getElementById("cat");
+                    let wantedTop = (c.height - cat.height) / 2;
+                    let wantedLeft = (c.width - cat.width) / 2;
+                    wantedLeft += catOffset * catAmplitude * c.width;
+                    cat.style.top = wantedTop+"px";
+                    cat.style.left = wantedLeft+"px";
+                    return wantedLeft;
+                }
+
+                let rainbow = (() => {
+                    let el = document.createElement("canvas");
+                    let stripHeight = 9;
+                    el.width = 30;
+                    el.height = 6 * stripHeight;
+                    let ctx = el.getContext('2d');
+                    ctx.fillStyle = '#ff0000';
+                    ctx.fillRect(0, 0, el.width, stripHeight);
+                    ctx.fillStyle = '#ff9900';
+                    ctx.fillRect(0, stripHeight, el.width, stripHeight);
+                    ctx.fillStyle = '#ffff00';
+                    ctx.fillRect(0, 2 * stripHeight, el.width, stripHeight);
+                    ctx.fillStyle = '#33ff00';
+                    ctx.fillRect(0, 3 * stripHeight, el.width, stripHeight);
+                    ctx.fillStyle = '#0099ff';
+                    ctx.fillRect(0, 4 * stripHeight, el.width, stripHeight);
+                    ctx.fillStyle = '#6633ff';
+                    ctx.fillRect(0, 5 * stripHeight, el.width, stripHeight);
+                    return el;
+                })();
+
+                let drawRainbow = (catLeft, ts, ctx) => {
+                    let width = rainbow.width;
+                    let height = rainbow.height;
+                    let yOffset = 32;
+                    let phaseOffset = 5;
+                    let phaseOffsetOn = 0;
+                    let rainbowPeriod = 200;
+                    let rainbowPhase = (ts % rainbowPeriod) / rainbowPeriod;
+                    for (let offset = -rainbowPhase * width * 2 ; offset < catLeft + width; offset += width) {
+                        ctx.drawImage(rainbow, offset, yOffset + phaseOffset * phaseOffsetOn);
+                        phaseOffsetOn = 1 - phaseOffsetOn;
+                    }
+                }
+
+                let loop = (ts) => {
+                    let ctx = c.getContext('2d');
+                    if (lastMakeStar === null || ts - lastMakeStar > makeStarInterval) {
+                        makeStar();
+                        lastMakeStar = ts;
+                    }
+                    if (lastAnimateStar === null || ts - lastAnimateStar > animateStarInterval) {
+                        ctx.fillStyle = "#0f4d8f";
+                        ctx.fillRect(0, 0, c.width, c.height);
+                        drawStars(ts, ts - lastAnimateStar, ctx);
+                        lastAnimateStar = ts;
+                    }
+                    let catLeft = animateCat(ts);
+                    drawRainbow(catLeft, ts, ctx);
+                    requestAnimationFrame(loop);
+                };
+
+                setup();
+                requestAnimationFrame(loop);
+            })();
+        </script>
+    </body>
+</html>

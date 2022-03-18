@@ -1,0 +1,147 @@
+<!doctype html>
+<html>
+    <head>
+        <style>
+            #container {
+                position: fixed;
+                width: 1920px;
+                height: 132px;
+                top: 0px;
+                left: 0px;
+                background-color: #080;
+            }
+            #main_clock_face {
+                font-size: 100px;
+                margin: 0px auto;
+                font-family: "Consolas", monospace;
+                color: #fff;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="container">
+            <div id="main_clock">
+                <p id="main_clock_face">Hello world!</p>
+            </div>
+            <div id="sub_upper">
+
+            </div>
+            <div id="sub_lower">
+
+            </div>
+        </div>
+        <script>
+            (() => {
+                let dawn = ["#000000", "#0542a8", "#1552c6", "#3072eb", "#71a8ee"];
+                let dawnOffset = -600000;
+                let dusk = ["#71a8ee", "#fc7001", "#dd723c", "#ad4a28", "#000000"];
+                let duskOffset = -600000;
+                let gradientInterval = 300000;
+                let dayTime = "#71a8ee";
+                let text = "#ffffff";
+                let aaEndpoint = "http://localhost:22000/";
+                let lastUpdateColor = null;
+                let updateColorInterval = 10000;
+                let gradc = document.createElement("canvas");
+                let getGradColor = (grad, gradStart, gradInterval, now) => {
+                    if (now < gradStart) {
+                        return grad[0];
+                    }
+                    if (now >= gradStart + gradInterval * (grad.length - 1)) {
+                        return grad[grad.length - 1];
+                    }
+                    let startIndex = Math.floor((now - gradStart) / gradInterval);
+                    gradc.width = 256;
+                    gradc.height = 1;
+                    let ctx = gradc.getContext('2d');
+                    let lgrad = ctx.createLinearGradient(0, 0, gradc.width-1, 0);
+                    lgrad.addColorStop(0, grad[startIndex]);
+                    lgrad.addColorStop(1, grad[startIndex + 1]);
+                    ctx.fillStyle = lgrad;
+                    ctx.fillRect(0, 0, gradc.width, gradc.height);
+                    let samplePos = now - gradStart - gradInterval * startIndex;
+                    samplePos /= gradientInterval;
+                    samplePos *= gradc.width;
+                    //console.log(samplePos);
+                    let imgDat = ctx.getImageData(Math.floor(samplePos), 0, 1, 1).data;
+                    return `rgb(${imgDat[0]}, ${imgDat[1]}, ${imgDat[2]})`;
+                }
+                let updateColor = (now) => {
+                    if (sunrise === null || sunset === null) {
+                        // No alnamac data
+                        return "#008000";
+                    }
+                    let dawnStart = sunrise + dawnOffset;
+                    let dawnEnd = dawnStart + gradientInterval * (dawn.length - 1);
+                    let duskStart = sunset + duskOffset;
+                    let duskEnd = duskStart + gradientInterval * (dusk.length - 1);
+                    if (now < dawnStart || now >= duskEnd) {
+                        // Night time
+                        return "#000000";
+                    }
+                    if (now >= dawnStart && now < dawnEnd) {
+                        // Dawn
+                        return getGradColor(dawn, dawnStart, gradientInterval, now);
+                    }
+                    if (now >= duskStart && now < duskEnd) {
+                        // Dusk
+                        return getGradColor(dusk, duskStart, gradientInterval, now);
+                    }
+                    // Daytime
+                    return dayTime;
+                }
+                let updateAAInterval = 600000;
+                let lastUpdateAA = null;
+                let sunrise = null;
+                let sunset = null;
+                let updateAA = () => {
+                    fetch(aaEndpoint + "aa").then((x) => x.json()).then((j) => {
+                        sunrise = j["The Sun"]["rises"];
+                        sunset = j["The Sun"]["sets"];
+                        sunrise = Date.UTC(sunrise[0], sunrise[1], sunrise[2], sunrise[3], sunrise[4], sunrise[5], sunrise[6]);
+                        sunset = Date.UTC(sunset[0], sunset[1], sunset[2], sunset[3], sunset[4], sunset[5], sunset[6]);
+                        console.log("Sunrise", sunrise);
+                        console.log("Sunset", sunset);
+                        //testMain();
+                    });
+                };
+                let testMain = () => {
+                    let fakeNow = new Date(2022, 2, 17, 0, 0, 0);
+                    let end = new Date(2022, 2, 18, 0, 0, 0);
+                    let render = () => {
+                        document.getElementById("container").style.backgroundColor = updateColor(fakeNow);
+                        fakeNow.setTime(fakeNow.getTime() + 600000);
+                        if (fakeNow < end) {
+                            requestAnimationFrame(render);
+                        }
+                    };
+                    requestAnimationFrame(render);
+                };
+                //updateAA();
+                let loop = (ts) => {
+                    let now = new Date();
+                    if (lastUpdateAA === null || ts - lastUpdateAA > updateAAInterval) {
+                        updateAA();
+                        lastUpdateAA = ts;
+                    }
+                    if (lastUpdateColor === null || ts - lastUpdateColor > updateColorInterval) {
+                        document.getElementById("container").style.backgroundColor = (updateColor(now));
+                        lastUpdateColor = ts;
+                    }
+                    let ms = now.getTime();
+                    let zeroPad = (input, to_length) => {
+                        let out = "0".repeat(to_length) + `${input}`;
+                        return out.slice(out.length - to_length, out.length);
+                    }
+                    now.setTime(now.getTime() + 1000 * 60 * 60 * 8);
+                    document.getElementById("main_clock_face").innerHTML = (
+                        Math.floor(ms / 1000).toString() +
+                        ` ${zeroPad(now.getHours(), 2)}:${zeroPad(now.getMinutes(), 2)}:${zeroPad(now.getSeconds(), 2)}`
+                    );
+                    requestAnimationFrame(loop);
+                };
+                requestAnimationFrame(loop);
+            })();
+        </script>
+    </body>
+</html>
